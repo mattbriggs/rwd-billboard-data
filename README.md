@@ -1,83 +1,161 @@
----
-output:
-  html_document:
-    df_print: paged
-knit: (function(inputFile, encoding) { rmarkdown::render(
-    inputFile,
-    encoding = encoding,
-    output_dir = "docs",
-    output_file='index.html'
-  ) })
----
-
 # rwd-billboard-data
 
-> **June 2023**: The combine action was updated to create a modified version of Hot 100 for an assignment.
+This repository contains two related systems:
 
-This project archives [Billboard Hot 100](https://www.billboard.com/charts/hot-100/) and [Billboard 200](https://www.billboard.com/charts/billboard-200/) charts data.
+- a historical Billboard chart archive built from the existing R notebooks and scripts
+- a packaged Python study system for song-level corpus building, enrichment, lyric feature extraction, blind scoring workflows, and export
 
-If you are here looking for a current archive, here are the files of interest:
+The Python system was added to support the research design in [design/Music-Study-Design.md](design/Music-Study-Design.md) and the software architecture in [design/study-design-srs.md](design/study-design-srs.md).
 
-- [data-out/hot-100-current.csv](data-out/hot-100-current.csv) has the [Billboard Hot 100](https://www.billboard.com/charts/hot-100/) back to its inception in 1958.
-- [data-out/billboard-200-current.csv](data-out/billboard-200-current.csv) is the [Billboard 200](https://www.billboard.com/charts/billboard-200/) from its inception in 1967.
+## Python Study System
 
-> There are minor data errors in both archives. See details below.
+The Python package lives under `src/study_system/` and is organized into explicit layers:
 
-This project has been ... an adventure. Details below.
+- `interfaces`: CLI commands and output surfaces
+- `application`: use-case orchestration services
+- `domain`: scoring rules, entities, normalization, and lyric features
+- `infrastructure`: chart adapters, provider adapters, caching, and persistence
+- `tests`: unit and integration coverage
 
-## Charts scraping and combining
+### Quickstart
 
-There are two Github Actions that call scripts to scrape a list of charts each week and then combine each chart's files with some processed archives from other sources. I currently collect for the Hot 100 and Billboard 200 charts.
+Use a virtual environment for this project. It is not technically required, but it is the recommended setup because the repo installs project-specific CLI, test, and documentation dependencies like `pytest`, `mkdocs`, and `mkdocstrings`.
 
-- `.github/workflows/scrap_charts.yml` is a Github Action that is scheduled on a cron to run `action_scrape_charts.R`. That scrapes the current chart and saves it.
-- `.github/workflows/combine_charts.yml` is a Github Action that is scheduled on a cron to run `action_combine_charts.R`. This combines scraped charts with any `previous_archives` files, if any.
+Check that you are using Python `3.12+`:
 
-The actions run Tuesday through Friday, though the charts usually update on Tuesdays (or Wednesdays on weeks with a Monday holiday.) There are also sometimes corrections.
+```bash
+python3 --version
+```
 
-### Exploration and maintenance
+Create and activate a local virtual environment on macOS or Linux:
 
-There are some RMarkdown notebooks used to explore and maintain those scripts: `01-scrape-charts.Rmd`, `02-combine-charts.Rmd` and `03-check-charts.Rmd`. There are some details recorded there that can help explain what is happening in the scrap/combine charts scripts.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e '.[test,docs]'
+```
 
-## Hot 100
+On Windows PowerShell:
 
-### 2022 to current
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[test,docs]"
+```
 
-The Github Action script saves data into `data-scraped/hot-100` based on the chart date. These files cover 2022 and forward.
+The quotes around `.[test,docs]` matter in `zsh`, which otherwise treats the brackets as a glob pattern.
 
-### Archive from before 2022
+When the environment is active, `python`, `pip`, `pytest`, `mkdocs`, and `song-study` will resolve from `.venv/` instead of your system Python.
 
-Where the data comes from:
+Optional: if you have a licensed Musixmatch API key, set it before running enrichment to add a higher-coverage lyrics fallback provider:
 
-- We downloaded this [kaggle](https://www.kaggle.com/dhruvildave/billboard-the-hot-100-songs) data straight from the web page. It is saved as `data-download/hot100_kaggle_195808_20211106.csv`. It has charts into November 2021. There are some missing records (at least 13).
-- Since the kaggle data is stale, some gap data was collected with a Data Miner Chrome plugin and [saved as a Google Sheet](https://docs.google.com/spreadsheets/d/1in--HfDYfijzQha8PSP4ItaKND9_rzx8pFPVHaZi-hE/edit?usp=sharing). It's possible this will replaced in the future.
-- Another source of Billboard Hot 100 data is on  [data.world](https://data.world/kcmillersean/billboard-hot-100-1958-2017) and it is used to fill in the data missing from kaggle. It only goes through June 2021 and also has gaps, but not the same gaps as the kaggle data.
+```bash
+export MUSIXMATCH_API_KEY="your-key-here"
+```
 
-How it comes together:
+Leave the environment with:
 
-- **notebooks/02-hot100-archive**: Combines different data sources to create the complete archive, saved into the `data-out` folder.
+```bash
+deactivate
+```
 
-### Known Hot 100 data errors
+Run the test suite:
 
-TLDR: My data matches what is currently online.
+```bash
+pytest
+```
 
-- There are a couple of records for "Rainy Night In Georgia/Rubberneckin'" by Brook Benton, which [some think](https://data.world/kcmillersean/billboard-hot-100-1958-2017/discuss/billboard-hot-100-1958-2017/me2tkmbx#kex5mx5n) is a mistake. Elvis' "Rubberneckin'" appears higher in these same weeks. As of 2022-07-23 the data appears this way online for [1970-01-10](https://www.billboard.com/charts/hot-100/1970-01-10/) and [1970-01-17](https://www.billboard.com/charts/hot-100/1970-01-17/) charts.
-- [This comment](https://data.world/kcmillersean/billboard-hot-100-1958-2017/discuss/billboard-hot-100-1958-2017/me2tkmbx#emfy2p2n) on the data.world collection: "Just another heads up for anyone using this dataset. The charts for 1961 contain another error. The Pips "Every Beat Of My Heart" is duplicated twice in some of the weekly charts, except the duplicates are credited to Gladys Knight & The Pips. The original 1961 release was credited to only Pips or The Pips, later re-releases of the song in the 70s reflect the band's change of name." I have confirmed the double entries in this data set and currently online at Billboard, but have not researched the possible reasons why.
+Run a single-song lookup:
 
-## Billboard 200
+```bash
+song-study lookup --title "Fast Car" --artist "Tracy Chapman" --pretty
+```
 
-The chart scraping script also collects the [Billboard 200](https://www.billboard.com/charts/billboard-200/) each week in to `data-scraped/billboard-200` stored by date, and the chart combine script builds a current archive saved as [data-out/billboard-200-current.csv](data-out/billboard-200-current.csv).
+Or use the compatibility wrapper:
 
-The combine script taps a processed archive file for charts pre-2020, explained below.
+```bash
+python3 song_study_lookup.py --title "Fast Car" --artist "Tracy Chapman" --pretty
+```
 
-> The following scripts won't work anymore. It would be nice to build the pre-2020 archive from my own R scrapes, but I haven't done that as yet.
+### CLI Workflows
 
--  01-build-archive-billboard200 is a python Jupyter Notebook that downloads the files one year at a time. The resulting files are saved in `data`. 
-There are two significant issues to be aware of:
-  - The downloaded data had errors dealing with quote escaping (I don't recall exactly). Errors were manually fixed in a text editor as they were discovered.
-  - **This process will no longer work because the python package is broken.** It no longer understands previousDate. The original data has been moved to `data-download/py-billboard-200` and the fixed data is in `data-process/billboard200`.
-- [02-billboard200-combine](https://utdata.github.io/rwd-billboard-data/02-billboard200-combine.html) is an R notebook used to combine the data. I used this notebook to find problems and then manually cleaned files, which are stored in `data-process/billboard200/`. Combined data is in `data-out/billboard200.csv`.
+Build a pilot corpus from weekly peak chart performance:
 
-### Known Billboard 200 data errors
+```bash
+song-study build-corpus --years 1965 1975 1985 1995 2005 2015 --top-n 25 --output outputs/pilot-corpus.json
+```
 
-- The first five weeks in the history have only 175 rows but that matches what is online. This is not really an error, but of note.
-- There are **only 191 records for 1967-09-16**. The chart is also incorrect online, missing records 153, 154, 182, 184, 192, 193, 195, 196 and 197.
+The default `build-corpus` strategy is now `stratified_peak`, which reduces the over-representation of `#1` hits by sampling across peak-rank bands. Use `--selection-strategy peak_top_n` if you want the older behavior that simply takes the best weekly peaks.
+
+Enrich a corpus:
+
+```bash
+song-study enrich --corpus-file outputs/pilot-corpus.json --output outputs/enriched-records.json
+```
+
+`enrich` now stores full lyrics by default for local research runs. Use `--omit-lyrics` if you want metadata-and-features only.
+
+Lyric lookup now tries stronger title and artist normalization first, then uses a provider chain. Out of the box it uses `Lyrics.ovh`, and if `MUSIXMATCH_API_KEY` is set it will try Musixmatch as an additional fallback provider.
+
+Export blind scoring packets:
+
+```bash
+song-study score-packets --records-file outputs/enriched-records.json --output outputs/scoring-packets.json
+```
+
+This writes a scoring template that retains the enriched record context by default, including `lyrics_text` when available. Each packet also includes the five rubric fields with `null` placeholders plus optional `scorer_id` and `notes`. Use `--blind` if you want a reduced blind-scoring view, or `--omit-lyrics` if you want packets without lyric text.
+
+Export a final dataset after scores have been collected:
+
+```bash
+song-study export-dataset --records-file outputs/enriched-records.json --scores-file outputs/scores.json --output outputs/final-dataset.csv
+```
+
+By default, `export-dataset` keeps manual scores when present, skips incomplete scoring packets with a warning, and generates deterministic fallback heuristic scores for lyric-bearing songs that still lack a completed manual score. The final CSV marks each row with `score_source` so you can distinguish `manual`, `auto_heuristic`, and `missing`. Add `--strict-scores` if you want the command to fail on any incomplete score entry.
+
+## Documentation
+
+The project includes MkDocs Material configuration and Mermaid diagram support.
+The authored documentation source lives in `site/`, and the publishable generated site is written to `docs/`.
+
+Serve the documentation locally:
+
+```bash
+mkdocs serve
+```
+
+Run the docs commands from the active virtual environment so `mkdocs-material` and `mkdocstrings` come from the project install.
+
+The documentation site includes:
+
+- project context
+- implementation and architecture notes
+- Mermaid system and workflow diagrams
+- usage guides
+- API documentation driven by Sphinx-compliant docstrings
+
+## Historical Billboard Archive
+
+The original chart archive remains available in this repository.
+
+Files of interest:
+
+- `data-out/hot-100-current.csv` contains weekly Billboard Hot 100 data back to 1958
+- `data-out/billboard-200-current.csv` contains weekly Billboard 200 data back to 1967
+
+The R and notebook workflows remain in place for chart scraping, archive combination, and exploratory maintenance:
+
+- `01-scrape-charts.Rmd`
+- `02-combine-charts.Rmd`
+- `03-assignment-data.Rmd`
+- `03-check-charts.Rmd`
+- `notebooks/`
+
+## Notes and Constraints
+
+- `lookup` omits full lyric text unless `--include-lyrics` is requested.
+- `enrich` is optimized for private bulk analysis and persists `lyrics_text` by default unless `--omit-lyrics` is used.
+- The current chart-based corpus builder uses the local weekly archive, not Billboard year-end rankings.
+- Open metadata providers can be incomplete for producers, labels, samples, and interpolation relationships, so audit workflows are still important for serious study use.

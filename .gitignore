@@ -112,6 +112,9 @@ target/
 
 # pyenv
 .python-version
+.venv/
+venv/
+env/
 
 # pipenv
 #   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
@@ -137,9 +140,6 @@ celerybeat-schedule
 .mr.developer.cfg
 .project
 .pydevproject
-
-# mkdocs documentation
-/site
 
 # mypy
 .mypy_cache/
@@ -218,3 +218,6 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.gitignore.io/api/r,macos,python,windows,jupyternotebooks
+
+
+Music-Study-Design.md

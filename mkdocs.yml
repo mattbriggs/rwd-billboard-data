@@ -1,0 +1,33 @@
+site_name: Music Study System
+site_description: Documentation for the music study data collection and scoring system.
+repo_name: rwd-billboard-data
+docs_dir: site
+site_dir: docs
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.superfences
+  - pymdownx.details
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+nav:
+  - Home: index.md
+  - Context: context.md
+  - Design:
+      - Architecture: design/architecture.md
+      - Data Model: design/data-model.md
+      - Diagrams: design/diagrams.md
+  - Usage:
+      - Quickstart: usage/quickstart.md
+  - API:
+      - Overview: api/index.md
